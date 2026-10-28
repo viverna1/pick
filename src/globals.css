@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+@theme {
+	--color-bg-500: #566e9a;
+	--color-bg-700: #131519;
+	--color-bg-900: #0a0b0e;
+}
+
+:root {
+	--c-bg: var(--color-bg-900);
+	--c-bg-2: var(--color-bg-800);
+	--c-bg-elev: var(--color-bg-700);
+
+	--c-text: #e8eaf0;
+	--c-border: #23262e;
+	--c-border-2: #2c303a;
+
+	--c-primary: #6f8dff;
+	--c-success: #4ade80;
+	--c-danger: #f87171;
+	--c-warn: #fbbf24;
+	--c-muted: #5f6675;
+
+	--gap: calc(var(--spacing) * 2);
+}
+
+[data-theme="light"] {
+	--c-bg: #d4d5d5;
+	--c-bg-2: #c0c0c1;
+	--c-text: #1c1e20;
+
+	--c-primary: var(--color-primary-300);
+	--c-accent: #7e838e;
+
+	--c-success: #16a34a;
+	--c-danger: #dc2626;
+	--c-warn: #b45309;
+}
+
+@theme inline {
+	--color-theme-bg: var(--c-bg);
+	--color-theme-bg-2: var(--c-bg-2);
+	--color-theme-bg-elev: var(--c-bg-elev);
+
+	--color-theme-text: var(--c-text);
+	--color-theme-border: var(--c-border);
+	--color-theme-border-2: var(--c-border-2);
+
+	--color-theme-primary: var(--c-primary);
+	--color-theme-primary-soft: color-mix(in oklab, var(--c-primary) 14%, var(--c-bg));
+	--color-theme-primary-border: color-mix(in oklab, var(--c-primary) 30%, var(--c-bg));
+
+	--color-theme-success: var(--c-success);
+	--color-theme-success-soft: color-mix(in oklab, var(--c-success) 14%, var(--c-bg));
+	--color-theme-success-border: color-mix(in oklab, var(--c-success) 30%, var(--c-bg));
+
+	--color-theme-danger: var(--c-danger);
+	--color-theme-danger-soft: color-mix(in oklab, var(--c-danger) 14%, var(--c-bg));
+	--color-theme-danger-border: color-mix(in oklab, var(--c-danger) 30%, var(--c-bg));
+
+	--color-theme-warn: var(--c-warn);
+	--color-theme-warn-soft: color-mix(in oklab, var(--c-warn) 14%, var(--c-bg));
+	--color-theme-warn-border: color-mix(in oklab, var(--c-warn) 30%, var(--c-bg));
+
+	--color-theme-muted: var(--c-muted);
+	--color-theme-muted-soft: color-mix(in oklab, var(--c-muted) 14%, var(--c-bg));
+	--color-theme-muted-border: color-mix(in oklab, var(--c-muted) 30%, var(--c-bg));
+}
+
+@layer utilities {
+	.bg-checkerboard {
+		--size: 16px;
+		background-color: var(--c-bg);
+
+		background-image: conic-gradient(var(--c-bg-elev) 25%, transparent 0 50%, var(--c-bg-elev) 0 75%, transparent 0);
+
+		background-size: var(--size) var(--size);
+	}
+}
+
+@utility slider-thumb {
+	--slider-size: 14px;
+	-webkit-appearance: none;
+	appearance: none;
+
+	/* ===== WebKit (Chrome, Safari, Edge) ===== */
+	&::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		appearance: none;
+		width: var(--slider-size);
+		height: var(--slider-size);
+		border-radius: 9999px;
+		background: var(--c-primary);
+		background-clip: padding-box;
+		border: 2px solid color-mix(in srgb, var(--c-primary) 20%, transparent);
+		cursor: pointer;
+		margin-top: -6px; /* (высота трека − высота ползунка) / 2 */
+		transition:
+			transform 0.15s ease,
+			background 0.15s ease;
+	}
+	&:hover::-webkit-slider-thumb {
+		border-width: 4px;
+	}
+	&:active::-webkit-slider-thumb {
+		width: calc(var(--slider-size) + 2px);
+		height: calc(var(--slider-size) + 2px);
+	}
+
+	/* ===== Firefox ===== */
+	&::-moz-range-thumb {
+		width: var(--slider-size);
+		height: var(--slider-size);
+		border-radius: 9999px;
+		background: var(--c-primary);
+		background-clip: padding-box;
+		border: 2px solid color-mix(in srgb, var(--c-primary) 20%, transparent);
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+	&:hover::-moz-range-thumb {
+		border-width: 4px;
+	}
+	&:active::-moz-range-thumb {
+		width: calc(var(--slider-size) + 2px);
+		height: calc(var(--slider-size) + 2px);
+	}
+}
+
+* {
+	transition: 150ms ease-in-out;
+	/*outline: 1px solid red;*/
+}

@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Пипетка — цвет пикселя</title>
+<style>
+  :root{
+    --bg:#0a0b0e;
+    --panel:#131519;
+    --panel-2:#191c22;
+    --line:#23262e;
+    --line-2:#2c303a;
+    --text:#e8eaf0;
+    --muted:#8b93a5;
+    --muted-2:#5f6675;
+    --accent:#6f8dff;
+    --accent-soft:rgba(111,141,255,.14);
+    --ok:#6fd08c;
+    --r:12px;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    overflow:hidden;
+    background:var(--bg);
+    color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    font-size:14px;
+    line-height:1.35;
+    -webkit-font-smoothing:antialiased;
+  }
+  .ico{
+    fill:none;stroke:currentColor;stroke-width:1.8;
+    stroke-linecap:round;stroke-linejoin:round;
+    flex:none;
+  }
+  kbd{
+    font:inherit;font-size:11px;padding:1px 5px;border-radius:5px;
+    background:#1c2029;border:1px solid var(--line-2);border-bottom-width:2px;
+    color:var(--muted);
+  }
+
+  /* ---------- layout ---------- */
+  .app{
+    height:100dvh;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 316px;
+    grid-template-rows:58px minmax(0,1fr);
+    grid-template-areas:
+      "bar bar"
+      "stage side";
+    gap:10px;
+    padding:10px;
+  }
+
+  /* ---------- toolbar ---------- */
+  .bar{
+    grid-area:bar;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+    padding:0 12px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+  }
+  .brand{
+    display:flex;align-items:center;gap:8px;
+    font-weight:600;letter-spacing:.2px;flex:none;
+  }
+  .brand svg{width:19px;height:19px;color:var(--accent)}
+  .bar-actions{display:flex;align-items:center;gap:7px;flex:none}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;
+    height:34px;padding:0 12px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:9px;
+    color:var(--text);
+    font:inherit;font-size:13px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:background .15s,border-color .15s,color .15s,opacity .15s;
+  }
+  .btn svg{width:16px;height:16px;color:var(--muted);transition:color .15s}
+  .btn:hover:not(:disabled){background:#1f232b;border-color:var(--line-2)}
+  .btn:hover:not(:disabled) svg{color:var(--text)}
+  .btn:active:not(:disabled){transform:translateY(1px)}
+  .btn:disabled{opacity:.35;cursor:default}
+  .btn.primary{
+    background:var(--accent-soft);
+    border-color:rgba(111,141,255,.32);
+    color:#c9d5ff;
+  }
+  .btn.primary svg{color:#9db1ff}
+  .btn.primary:hover:not(:disabled){background:rgba(111,141,255,.22)}
+  .btn.icon-only{width:34px;padding:0;justify-content:center}
+
+  .bar-hint{
+    margin-left:auto;
+    min-width:0;
+    padding-left:10px;
+    font-size:12.5px;
+    color:var(--muted-2);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  /* ---------- stage ---------- */
+  .stage{
+    grid-area:stage;
+    position:relative;
+    min-width:0;min-height:0;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    overflow:hidden;
+  }
+  #view{
+    position:absolute;inset:0;
+    width:100%;height:100%;
+    display:block;
+    cursor:crosshair;
+    touch-action:none;
+  }
+  .stage.is-empty #view{cursor:default}
+
+  .stage.dragging::after{
+    content:"";
+    position:absolute;inset:9px;
+    border:2px dashed var(--accent);
+    border-radius:10px;
+    background:rgba(111,141,255,.07);
+    pointer-events:none;
+    z-index:3;
+  }
+
+  .empty{
+    position:absolute;inset:0;
+    display:grid;place-items:center;
+    cursor:pointer;
+    z-index:2;
+    background:radial-gradient(circle at 50% 45%,rgba(111,141,255,.05),transparent 62%);
+  }
+  .empty[hidden]{display:none}
+  .empty-inner{
+    display:flex;flex-direction:column;align-items:center;
+    gap:8px;text-align:center;padding:20px;
+    user-select:none;
+  }
+  .empty-ico{width:44px;height:44px;color:var(--muted-2);margin-bottom:6px}
+  .empty-title{font-size:15px;font-weight:600;color:var(--text)}
+  .empty-sub{font-size:12.5px;color:var(--muted-2)}
+  .empty-sub em{font-style:normal;color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+
+  /* ---------- side ---------- */
+  .side{
+    grid-area:side;
+    display:flex;flex-direction:column;gap:10px;
+    min-width:0;min-height:0;overflow:hidden;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    padding:12px;
+  }
+
+  /* color card */
+  .color-card{flex:0 0 auto}
+  .swatch{
+    position:relative;
+    height:84px;
+    border-radius:10px;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.07);
+    background-color:#0c0e12;
+    background-image:
+      linear-gradient(45deg,#181c24 25%,transparent 25%),
+      linear-gradient(-45deg,#181c24 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#181c24 75%),
+      linear-gradient(-45deg,transparent 75%,#181c24 75%);
+    background-size:12px 12px;
+    background-position:0 0,0 6px,6px -6px,-6px 0;
+  }
+  .swatch-fill{position:absolute;inset:0;background:transparent;transition:background .08s linear}
+
+  .vals{margin-top:10px;display:flex;flex-direction:column;gap:1px}
+  .val{
+    display:grid;
+    grid-template-columns:38px minmax(0,1fr) 28px;
+    align-items:center;
+    height:32px;
+    padding:0 3px 0 7px;
+    border-radius:8px;
+  }
+  .val:hover{background:rgba(255,255,255,.035)}
+  .val .k{
+    font-size:10.5px;font-weight:700;letter-spacing:.09em;
+    color:var(--muted-2);
+  }
+  .val .v{
+    font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:12.5px;
+    color:var(--text);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .copy{
+    width:26px;height:26px;
+    display:grid;place-items:center;
+    border:0;border-radius:7px;
+    background:transparent;color:var(--muted);
+    cursor:pointer;
+    transition:background .15s,color .15s,opacity .15s;
+  }
+  .copy svg{width:15px;height:15px}
+  .copy:hover:not(:disabled){background:rgba(255,255,255,.07);color:var(--text)}
+  .copy:disabled{opacity:.25;cursor:default}
+  .copy .i-check{display:none;color:var(--ok)}
+  .copy.ok .i-copy{display:none}
+  .copy.ok .i-check{display:block}
+  .copy.ok{color:var(--ok)}
+
+  /* magnifier card */
+  .mag-card{
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .card-head{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    flex:none;
+  }
+  .card-title{
+    display:flex;align-items:center;gap:7px;
+    font-size:12.5px;font-weight:600;color:var(--muted);
+  }
+  .card-title svg{width:15px;height:15px}
+  .badge{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11.5px;
+    padding:2px 8px;border-radius:6px;
+    color:#a9bbff;background:var(--accent-soft);
+  }
+  .mag-stage{
+    flex:1 1 auto;
+    min-height:0;
+    display:grid;place-items:center;
+    overflow:hidden;
+  }
+  #mag{
+    display:block;
+    border-radius:10px;
+    border:1px solid var(--line);
+  }
+  .slider-row{display:flex;align-items:center;gap:9px;flex:none}
+  .slider-label{font-size:11.5px;color:var(--muted-2);white-space:nowrap}
+
+  input[type="range"].slider{
+    -webkit-appearance:none;appearance:none;
+    flex:1;min-width:0;height:18px;background:transparent;cursor:pointer;
+  }
+  .slider::-webkit-slider-runnable-track{height:4px;border-radius:3px;background:#262a33}
+  .slider::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:14px;height:14px;margin-top:-5px;border:0;border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 0 3px rgba(111,141,255,.18);
+  }
+  .slider::-moz-range-track{height:4px;border-radius:3px;background:#262a33}
+  .slider::-moz-range-thumb{
+    width:14px;height:14px;border:0;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 0 3px rgba(111,141,255,.18);
+  }
+
+  /* ---------- toast ---------- */
+  .toast{
+    position:fixed;left:50%;bottom:22px;z-index:99;
+    transform:translate(-50%,14px);
+    max-width:80vw;
+    padding:9px 14px;
+    border-radius:10px;
+    border:1px solid var(--line-2);
+    background:#1c2029;
+    color:var(--text);
+    font-size:13px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    box-shadow:0 10px 34px rgba(0,0,0,.55);
+    opacity:0;pointer-events:none;
+    transition:opacity .18s ease,transform .18s ease;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:1100px){
+    .bar-hint{display:none}
+  }
+  @media (max-width:860px){
+    .app{
+      grid-template-columns:minmax(0,1fr);
+      grid-template-rows:56px minmax(0,1fr) auto;
+      grid-template-areas:"bar" "stage" "side";
+    }
+    .side{flex-direction:row;align-items:stretch}
+    .color-card{flex:1 1 auto;min-width:0}
+    .swatch{height:58px}
+    .vals{margin-top:6px}
+    .val{height:28px}
+    .mag-card{flex:0 0 auto;width:168px;min-width:168px}
+  }
+  @media (max-width:520px){
+    .brand span{display:none}
+    .btn .lbl{display:none}
+    .btn{padding:0 10px}
+    .mag-card{width:148px;min-width:148px}
+  }
+</style>
+</head>
+<body>
+
+<!-- SVG-спрайт -->
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-pipette" viewBox="0 0 24 24">
+    <path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/>
+    <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/>
+  </symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24">
+    <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
+  </symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24">
+    <rect width="8" height="4" x="8" y="2" rx="1"/>
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+  </symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24">
+    <path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+  </symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24">
+    <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24">
+    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+  </symbol>
+  <symbol id="i-image" viewBox="0 0 24 24">
+    <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+    <circle cx="9" cy="9" r="2"/>
+    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+  </symbol>
+</svg>
+
+<div class="app">
+
+  <header class="bar">
+    <div class="brand">
+      <svg class="ico"><use href="#i-pipette"/></svg>
+      <span>Пипетка</span>
+    </div>
+
+    <div class="bar-actions">
+      <button class="btn primary" id="openBtn" type="button">
+        <svg class="ico"><use href="#i-folder"/></svg>
+        <span class="lbl">Открыть</span>
+      </button>
+      <button class="btn" id="pasteBtn" type="button">
+        <svg class="ico"><use href="#i-clipboard"/></svg>
+        <span class="lbl">Вставить</span>
+      </button>
+      <button class="btn icon-only" id="clearBtn" type="button" title="Очистить" disabled>
+        <svg class="ico"><use href="#i-trash"/></svg>
+      </button>
+    </div>
+
+    <div class="bar-hint">
+      Перетащите файл в окно, вставьте из буфера — <kbd>Ctrl</kbd>+<kbd>V</kbd>
+    </div>
+  </header>
+
+  <main class="stage is-empty" id="stage">
+    <canvas id="view"></canvas>
+
+    <div class="empty" id="empty">
+      <div class="empty-inner">
+        <svg class="ico empty-ico"><use href="#i-image"/></svg>
+        <div class="empty-title">Перетащите изображение сюда</div>
+        <div class="empty-sub">
+          или <em>выберите файл</em>, либо вставьте через <kbd>Ctrl</kbd>+<kbd>V</kbd>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="side">
+
+    <section class="card color-card">
+      <div class="swatch">
+        <div class="swatch-fill" id="swatchFill"></div>
+      </div>
+
+      <div class="vals">
+        <div class="val">
+          <span class="k">HEX</span>
+          <code class="v" id="valHex">—</code>
+          <button class="copy" type="button" data-copy="hex" title="Копировать HEX" disabled>
+            <svg class="ico i-copy"><use href="#i-copy"/></svg>
+            <svg class="ico i-check"><use href="#i-check"/></svg>
+          </button>
+        </div>
+        <div class="val">
+          <span class="k">RGB</span>
+          <code class="v" id="valRgb">—</code>
+          <button class="copy" type="button" data-copy="rgb" title="Копировать RGB" disabled>
+            <svg class="ico i-copy"><use href="#i-copy"/></svg>
+            <svg class="ico i-check"><use href="#i-check"/></svg>
+          </button>
+        </div>
+        <div class="val">
+          <span class="k">HSL</span>
+          <code class="v" id="valHsl">—</code>
+          <button class="copy" type="button" data-copy="hsl" title="Копировать HSL" disabled>
+            <svg class="ico i-copy"><use href="#i-copy"/></svg>
+            <svg class="ico i-check"><use href="#i-check"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card mag-card">
+      <div class="card-head">
+        <span class="card-title">
+          <svg class="ico"><use href="#i-search"/></svg>
+          Лупа
+        </span>
+        <span class="badge" id="zoomBadge">×12</span>
+      </div>
+
+      <div class="mag-stage" id="magStage">
+        <canvas id="mag"></canvas>
+      </div>
+
+      <div class="slider-row">
+        <span class="slider-label">Масштаб</span>
+        <input class="slider" id="zoom" type="range" min="3" max="24" step="1" value="12"
+               aria-label="Масштаб лупы">
+      </div>
+    </section>
+
+  </aside>
+</div>
+
+<input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif,image/*" hidden>
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- DOM ---------- */
+  var stage       = $('stage');
+  var viewCanvas  = $('view');
+  var viewCtx     = viewCanvas.getContext('2d');
+  var emptyEl     = $('empty');
+  var fileInput   = $('fileInput');
+  var openBtn     = $('openBtn');
+  var pasteBtn    = $('pasteBtn');
+  var clearBtn    = $('clearBtn');
+
+  var swatchFill  = $('swatchFill');
+  var valHex      = $('valHex');
+  var valRgb      = $('valRgb');
+  var valHsl      = $('valHsl');
+  var copyBtns    = Array.prototype.slice.call(document.querySelectorAll('.copy'));
+
+  var magStage    = $('magStage');
+  var magCanvas   = $('mag');
+  var magCtx      = magCanvas.getContext('2d');
+  var zoomRange   = $('zoom');
+  var zoomBadge   = $('zoomBadge');
+  var toastEl     = $('toast');
+
+  /* ---------- state ---------- */
+  var dpr = window.devicePixelRatio || 1;
+
+  var img = null;         // HTMLImageElement
+  var imgW = 0, imgH = 0;
+
+  var view = null;        // { x, y, w, h } — положение изображения на canvas (CSS px)
+  var hover = null;       // { x, y } — координаты пикселя под курсором
+  var selected = null;    // { x, y } — закреплённый пиксель
+
+  var objUrl = null;
+  var magSize = 0;
+  var magDpr = -1;
+  var copyValues = { hex: '', rgb: '', hsl: '' };
+  var toastTimer = 0;
+
+  // offscreen-канвас с полноразмерным изображением для чтения пикселей
+  var srcCanvas = document.createElement('canvas');
+  var srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
+
+  /* ---------- color utils ---------- */
+  function getPixel(x, y) {
+    var d = srcCtx.getImageData(x, y, 1, 1).data;
+    return { r: d[0], g: d[1], b: d[2], a: d[3] };
+  }
+
+  function toHex(c) {
+    function h(v) { return v.toString(16).padStart(2, '0'); }
+    return ('#' + h(c.r) + h(c.g) + h(c.b)).toUpperCase();
+  }
+
+  function toRgbStr(c) {
+    if (c.a === 255) return 'rgb(' + c.r + ', ' + c.g + ', ' + c.b + ')';
+    return 'rgba(' + c.r + ', ' + c.g + ', ' + c.b + ', ' + (c.a / 255).toFixed(3) + ')';
+  }
+
+  function toHslStr(c) {
+    var r = c.r / 255, g = c.g / 255, b = c.b / 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h = 0, s = 0, l = (max + min) / 2;
+    var d = max - min;
+    if (d !== 0) {
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r)      h = ((g - b) / d + (g < b ? 6 : 0));
+      else if (max === g) h = ((b - r) / d + 2);
+      else                h = ((r - g) / d + 4);
+      h *= 60;
+    }
+    return 'hsl(' + Math.round(h) + ', ' + Math.round(s * 100) + '%, ' + Math.round(l * 100) + '%)';
+  }
+
+  /* ---------- toast ---------- */
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 1700);
+  }
+
+  /* ---------- clipboard ---------- */
+  function copyText(text) {
+    if (!text) return Promise.resolve(false);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () { return true; },
+        function () { return legacyCopy(text); });
+    }
+    return Promise.resolve(legacyCopy(text));
+  }
+
+  function legacyCopy(text) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  copyBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.getAttribute('data-copy');
+      var text = copyValues[key];
+      if (!text) return;
+      copyText(text).then(function (ok) {
+        if (ok) {
+          btn.classList.add('ok');
+          setTimeout(function () { btn.classList.remove('ok'); }, 950);
+          toast('Скопировано: ' + text);
+        } else {
+          toast('Не удалось скопировать');
+        }
+      });
+    });
+  });
+
+  /* ---------- image loading ---------- */
+  function loadFromBlob(blob) {
+    if (!blob) return;
+    if (blob.type && blob.type.indexOf('image/') !== 0 && !/\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(blob.name || '')) {
+      toast('Это не изображение');
+      return;
+    }
+
+    if (objUrl) { URL.revokeObjectURL(objUrl); objUrl = null; }
+    objUrl = URL.createObjectURL(blob);
+
+    var im = new Image();
+    im.decoding = 'async';
+    im.onload = function () {
+      img = im;
+      imgW = im.naturalWidth || im.width;
+      imgH = im.naturalHeight || im.height;
+      if (!imgW || !imgH) { toast('Пустое изображение'); return; }
+
+      srcCanvas.width = imgW;
+      srcCanvas.height = imgH;
+      srcCtx.clearRect(0, 0, imgW, imgH);
+      srcCtx.drawImage(im, 0, 0);      // для GIF — первый кадр
+
+      hover = null;
+      selected = null;
+
+      stage.classList.remove('is-empty');
+      emptyEl.hidden = true;
+      clearBtn.disabled = false;
+
+      render();
+      updateUI();
+      drawMagnifier();
+    };
+    im.onerror = function () { toast('Не удалось открыть изображение'); };
+    im.src = objUrl;
+  }
+
+  function clearImage() {
+    img = null; imgW = 0; imgH = 0;
+    hover = null; selected = null;
+    if (objUrl) { URL.revokeObjectURL(objUrl); objUrl = null; }
+    srcCanvas.width = 0; srcCanvas.height = 0;
+
+    stage.classList.add('is-empty');
+    emptyEl.hidden = false;
+    clearBtn.disabled = true;
+
+    render();
+    updateUI();
+    drawMagnifier();
+  }
+
+  /* ---------- main render ---------- */
+  function render() {
+    var rect = stage.getBoundingClientRect();
+    var W = Math.max(1, Math.round(rect.width));
+    var H = Math.max(1, Math.round(rect.height));
+
+    var bw = Math.round(W * dpr);
+    var bh = Math.round(H * dpr);
+    if (viewCanvas.width !== bw || viewCanvas.height !== bh) {
+      viewCanvas.width = bw;
+      viewCanvas.height = bh;
+    }
+
+    viewCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    viewCtx.clearRect(0, 0, W, H);
+
+    if (!img) { view = null; return; }
+
+    var pad = Math.round(Math.min(24, Math.max(10, Math.min(W, H) * 0.04)));
+    var availW = Math.max(1, W - pad * 2);
+    var availH = Math.max(1, H - pad * 2);
+
+    var scale = Math.min(availW / imgW, availH / imgH);
+    var dw = imgW * scale;
+    var dh = imgH * scale;
+    var dx = Math.round((W - dw) / 2);
+    var dy = Math.round((H - dh) / 2);
+
+    view = { x: dx, y: dy, w: dw, h: dh };
+
+    viewCtx.imageSmoothingEnabled = scale < 1;
+    viewCtx.imageSmoothingQuality = 'high';
+    viewCtx.drawImage(img, dx, dy, dw, dh);
+
+    if (selected) drawSelectedMarker(selected);
+    if (hover) drawHoverMarker(hover);
+  }
+
+  function drawSelectedMarker(p) {
+    var cx = view.x + (p.x + 0.5) * view.w / imgW;
+    var cy = view.y + (p.y + 0.5) * view.h / imgH;
+
+    viewCtx.beginPath();
+    viewCtx.arc(cx, cy, 8.5, 0, Math.PI * 2);
+    viewCtx.lineWidth = 4;
+    viewCtx.strokeStyle = 'rgba(0,0,0,0.55)';
+    viewCtx.stroke();
+    viewCtx.lineWidth = 1.75;
+    viewCtx.strokeStyle = '#ffffff';
+    viewCtx.stroke();
+
+    viewCtx.beginPath();
+    viewCtx.arc(cx, cy, 1.6, 0, Math.PI * 2);
+    viewCtx.fillStyle = '#ffffff';
+    viewCtx.fill();
+  }
+
+  function drawHoverMarker(p) {
+    var cw = view.w / imgW;
+    var ch = view.h / imgH;
+    var cx = view.x + (p.x + 0.5) * cw;
+    var cy = view.y + (p.y + 0.5) * ch;
+    var s = Math.max(9, cw + 2, ch + 2);
+    var x = cx - s / 2;
+    var y = cy - s / 2;
+
+    viewCtx.lineWidth = 3;
+    viewCtx.strokeStyle = 'rgba(0,0,0,0.5)';
+    viewCtx.strokeRect(x, y, s, s);
+    viewCtx.lineWidth = 1;
+    viewCtx.strokeStyle = '#ffffff';
+    viewCtx.strokeRect(x, y, s, s);
+  }
+
+  /* ---------- color panel ---------- */
+  function updateUI() {
+    var p = hover || selected;
+    var c = (img && p) ? getPixel(p.x, p.y) : null;
+
+    if (!c) {
+      swatchFill.style.background = 'transparent';
+      valHex.textContent = '—';
+      valRgb.textContent = '—';
+      valHsl.textContent = '—';
+      copyValues = { hex: '', rgb: '', hsl: '' };
+      copyBtns.forEach(function (b) { b.disabled = true; });
+      return;
+    }
+
+    var hex = toHex(c);
+    var rgb = toRgbStr(c);
+    var hsl = toHslStr(c);
+
+    swatchFill.style.background = 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + (c.a / 255).toFixed(3) + ')';
+    valHex.textContent = hex;
+    valRgb.textContent = rgb;
+    valHsl.textContent = hsl;
+
+    copyValues = { hex: hex, rgb: rgb, hsl: hsl };
+    copyBtns.forEach(function (b) { b.disabled = false; });
+  }
+
+  /* ---------- magnifier ---------- */
+  function drawMagnifier() {
+    var S = magSize;
+    if (!S) return;
+
+    var ctx = magCtx;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, S, S);
+
+    // фон
+    ctx.fillStyle = '#0c0e12';
+    ctx.fillRect(0, 0, S, S);
+
+    var pt = hover || selected;
+    if (!img || !pt) {
+      ctx.fillStyle = '#2a2f3a';
+      ctx.fillRect(S / 2 - 7, S / 2 - 1, 14, 2);
+      return;
+    }
+
+    var zoom = parseInt(zoomRange.value, 10) || 12;
+
+    // сколько исходных пикселей влезает по стороне (нечётное — чтобы центр был точным)
+    var n = Math.floor(S / zoom);
+    if (n < 1) n = 1;
+    if (n % 2 === 0) n += 1;
+
+    var cell = Math.floor(S / n);
+    if (cell < 1) cell = 1;
+    var off = Math.floor((S - cell * n) / 2);
+    var half = (n - 1) / 2;
+
+    var sx0 = pt.x - half;
+    var sy0 = pt.y - half;
+
+    // рисуем видимую часть области
+    var gx = Math.max(0, sx0);
+    var gy = Math.max(0, sy0);
+    var gx2 = Math.min(imgW, sx0 + n);
+    var gy2 = Math.min(imgH, sy0 + n);
+    var gw = gx2 - gx;
+    var gh = gy2 - gy;
+
+    if (gw > 0 && gh > 0) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        srcCanvas,
+        gx, gy, gw, gh,
+        off + (gx - sx0) * cell, off + (gy - sy0) * cell,
+        gw * cell, gh * cell
+      );
+    }
+
+    // сетка пикселей
+    if (cell >= 7) {
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+      ctx.lineWidth = 1;
+      for (var i = 0; i <= n; i++) {
+        var v = off + i * cell + 0.5;
+        ctx.moveTo(v, off + 0.5);
+        ctx.lineTo(v, off + n * cell + 0.5);
+        ctx.moveTo(off + 0.5, v);
+        ctx.lineTo(off + n * cell + 0.5, v);
+      }
+      ctx.stroke();
+    }
+
+    // подсветка центрального пикселя
+    var cx0 = off + half * cell;
+    var cy0 = off + half * cell;
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.strokeRect(cx0 - 1.5, cy0 - 1.5, cell + 3, cell + 3);
+
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#ffffff';
+    ctx.strokeRect(cx0 + 0.5, cy0 + 0.5, cell - 1, cell - 1);
+
+    zoomBadge.textContent = '×' + cell;
+  }
+
+  function sizeMagnifier() {
+    var r = magStage.getBoundingClientRect();
+    var s = Math.floor(Math.min(r.width, r.height));
+    if (s < 0) s = 0;
+
+    if (s === magSize && dpr === magDpr) return;
+
+    magSize = s;
+    magDpr = dpr;
+
+    magCanvas.style.width = s + 'px';
+    magCanvas.style.height = s + 'px';
+    magCanvas.width = Math.max(1, Math.round(s * dpr));
+    magCanvas.height = Math.max(1, Math.round(s * dpr));
+
+    drawMagnifier();
+  }
+
+  /* ---------- pointer ---------- */
+  function pointFromEvent(e) {
+    if (!img || !view) return null;
+    var r = viewCanvas.getBoundingClientRect();
+    var mx = e.clientX - r.left;
+    var my = e.clientY - r.top;
+
+    if (mx < view.x || my < view.y || mx >= view.x + view.w || my >= view.y + view.h) return null;
+
+    var x = Math.floor((mx - view.x) / view.w * imgW);
+    var y = Math.floor((my - view.y) / view.h * imgH);
+
+    if (x < 0) x = 0; else if (x > imgW - 1) x = imgW - 1;
+    if (y < 0) y = 0; else if (y > imgH - 1) y = imgH - 1;
+
+    return { x: x, y: y };
+  }
+
+  viewCanvas.addEventListener('pointermove', function (e) {
+    if (!img) return;
+    var p = pointFromEvent(e);
+
+    var same = (p === null && hover === null) ||
+               (p && hover && p.x === hover.x && p.y === hover.y);
+    if (same) return;
+
+    hover = p;
+    render();
+    updateUI();
+    drawMagnifier();
+  });
+
+  viewCanvas.addEventListener('pointerdown', function (e) {
+    if (!img) return;
+    var p = pointFromEvent(e);
+    if (!p) return;
+    e.preventDefault();
+    selected = { x: p.x, y: p.y };
+    hover = { x: p.x, y: p.y };
+    render();
+    updateUI();
+    drawMagnifier();
+  });
+
+  viewCanvas.addEventListener('pointerleave', function () {
+    if (!img || !hover) return;
+    hover = null;
+    render();
+    updateUI();
+    drawMagnifier();
+  });
+
+  /* ---------- resize ---------- */
+  if (window.ResizeObserver) {
+    new ResizeObserver(function () { render(); }).observe(stage);
+    new ResizeObserver(function () { sizeMagnifier(); }).observe(magStage);
+  }
+
+  window.addEventListener('resize', function () {
+    var nd = window.devicePixelRatio || 1;
+    if (nd !== dpr) dpr = nd;
+    render();
+    sizeMagnifier();
+  });
+
+  /* ---------- zoom slider ---------- */
+  zoomRange.addEventListener('input', function () { drawMagnifier(); });
+
+  /* ---------- open / paste / clear ---------- */
+  openBtn.addEventListener('click', function () { fileInput.click(); });
+  emptyEl.addEventListener('click', function () { fileInput.click(); });
+  clearBtn.addEventListener('click', clearImage);
+
+  fileInput.addEventListener('change', function () {
+    var f = fileInput.files && fileInput.files[0];
+    if (f) loadFromBlob(f);
+    fileInput.value = '';
+  });
+
+  pasteBtn.addEventListener('click', function () {
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+      toast('Нажмите Ctrl+V для вставки из буфера');
+      return;
+    }
+    navigator.clipboard.read().then(function (items) {
+      var found = false;
+      var tasks = [];
+      items.forEach(function (item) {
+        var type = (item.types || []).filter(function (t) { return t.indexOf('image/') === 0; })[0];
+        if (type) {
+          found = true;
+          tasks.push(item.getType(type).then(function (blob) {
+            loadFromBlob(new File([blob], 'clipboard', { type: type }));
+          }));
+        }
+      });
+      if (!found) toast('В буфере нет изображения');
+      return Promise.all(tasks);
+    }).catch(function () {
+      toast('Нет доступа к буферу — нажмите Ctrl+V');
+    });
+  });
+
+  /* ---------- paste (Ctrl/Cmd + V) ---------- */
+  window.addEventListener('paste', function (e) {
+    var dt = e.clipboardData;
+    if (!dt) return;
+
+    var items = dt.items || [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.indexOf('image/') === 0) {
+        var f = items[i].getAsFile();
+        if (f) {
+          e.preventDefault();
+          loadFromBlob(f);
+          return;
+        }
+      }
+    }
+
+    // иногда картинка приходит только как файл
+    var files = dt.files || [];
+    for (var j = 0; j < files.length; j++) {
+      if (files[j].type && files[j].type.indexOf('image/') === 0) {
+        e.preventDefault();
+        loadFromBlob(files[j]);
+        return;
+      }
+    }
+  });
+
+  /* ---------- drag & drop ---------- */
+  var dragDepth = 0;
+
+  function hasFiles(e) {
+    var dt = e.dataTransfer;
+    if (!dt) return false;
+    var t = dt.types;
+    if (!t) return false;
+    for (var i = 0; i < t.length; i++) if (t[i] === 'Files') return true;
+    return false;
+  }
+
+  window.addEventListener('dragenter', function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth++;
+    stage.classList.add('dragging');
+  });
+
+  window.addEventListener('dragover', function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  window.addEventListener('dragleave', function (e) {
+    if (!hasFiles(e) && !e.relatedTarget) {
+      dragDepth = 0;
+      stage.classList.remove('dragging');
+      return;
+    }
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) stage.classList.remove('dragging');
+  });
+
+  window.addEventListener('drop', function (e) {
+    e.preventDefault();
+    dragDepth = 0;
+    stage.classList.remove('dragging');
+
+    var dt = e.dataTransfer;
+    if (!dt) return;
+
+    var f = dt.files && dt.files[0];
+    if (f) { loadFromBlob(f); return; }
+
+    // перетаскивание картинки из другой вкладки/браузера
+    var url = dt.getData('text/uri-list') || dt.getData('text/plain');
+    if (url && /^https?:\/\//i.test(url.trim())) {
+      var im = new Image();
+      im.crossOrigin = 'anonymous';
+      im.onload = function () {
+        srcCanvas.width = im.naturalWidth;
+        srcCanvas.height = im.naturalHeight;
+        srcCtx.clearRect(0, 0, srcCanvas.width, srcCanvas.height);
+        try {
+          srcCtx.drawImage(im, 0, 0);
+          srcCtx.getImageData(0, 0, 1, 1); // проверка на taint
+        } catch (err) {
+          toast('Изображение с другого домена — сохраните файл');
+          return;
+        }
+        img = im; imgW = im.naturalWidth; imgH = im.naturalHeight;
+        hover = null; selected = null;
+        stage.classList.remove('is-empty');
+        emptyEl.hidden = true;
+        clearBtn.disabled = false;
+        render(); updateUI(); drawMagnifier();
+      };
+      im.onerror = function () { toast('Не удалось загрузить изображение по ссылке'); };
+      im.src = url.trim().split('\n')[0];
+    }
+  });
+
+  /* ---------- init ---------- */
+  render();
+  updateUI();
+  sizeMagnifier();
+
+})();
+</script>
+</body>
+</html>

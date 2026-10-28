@@ -1,0 +1,16 @@
+{
+	"plugins": ["prettier-plugin-tailwindcss"],
+	"tailwindStylesheet": "./src/globals.css",
+	"printWidth": 100,
+	"tabWidth": 2,
+	"useTabs": true,
+	"semi": true,
+	"overrides": [
+		{
+			"files": "*.css",
+			"options": {
+				"printWidth": 120
+			}
+		}
+	]
+}
